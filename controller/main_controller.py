@@ -2,7 +2,8 @@
 
 from pathlib import Path
 from model.file_manager import FileManager
-from model.similarity import SimilarityAnalyzer, ComparisonResult
+# Before: from model.similarity import SimilarityAnalyzer, ComparisonResult
+from model.similarity import CodeAnalyzer, ComparisonResult
 from view.result_list import ResultListView
 from view.detail_view import DetailView
 
@@ -14,7 +15,8 @@ class MainController:
     def __init__(self):
         # 模型
         self.file_manager = FileManager()
-        self.analyzer = SimilarityAnalyzer()
+        # Before: self.analyzer = SimilarityAnalyzer()
+        self.analyzer = CodeAnalyzer()
         # 视图（在 MainWindow 中注入）
         self.result_view: ResultListView = None  # type: ignore
         self.detail_view: DetailView = None      # type: ignore
@@ -40,7 +42,8 @@ class MainController:
             print("无文件可查重")
             return
         # 执行匹配分析
-        results: list[ComparisonResult] = self.analyzer.compute_all_pairs(files)
+        # Before: results: list[ComparisonResult] = self.analyzer.compute_all_pairs(files)
+        results: list[ComparisonResult] = self.analyzer.run_analysis(files)
         # 更新列表视图
         if self.result_view:
             self.result_view.display(results)
