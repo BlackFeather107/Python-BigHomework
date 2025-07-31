@@ -12,26 +12,17 @@ class CodeCleaner:
     def clean(self, source_code: str) -> str:
         """
         接收源代码字符串，返回清理后的版本。
-
-        我们使用 tokenize 模块，这是处理Python代码最准确的方式，
-        它可以正确处理多行字符串、注释在字符串内等复杂情况。
         """
-        # 使用tokenize模块来准确地移除注释
         tokens = tokenize.generate_tokens(StringIO(source_code).readline)
-        
         cleaned_tokens = []
         for tok_type, tok_val, _, _, _ in tokens:
-            # 忽略所有注释和编码声明
+            # 忽略所有注释和编码声明，保留所有其他类型的token
             if tok_type in (tokenize.COMMENT, tokenize.ENCODING):
                 continue
-            
-            # 保留所有其他类型的token
             cleaned_tokens.append((tok_type, tok_val))
 
-        # 将清理后的tokens还原为代码字符串
+        # 将清理后的tokens还原为代码字符串，并移除空行
         cleaned_code = tokenize.untokenize(cleaned_tokens)
-
-        # 移除空行
         lines = cleaned_code.splitlines()
         non_empty_lines = [line for line in lines if line.strip()]
         

@@ -5,7 +5,7 @@ from typing import List
 
 from .preprocessors import CodeCleaner, Tokenizer
 from .result import ComparisonResult
-from .metrics import DifflibMetric
+from .metrics import JaccardMetric, LCSMetric, SequenceSimilarityMetric, LevenshteinMetric
 
 class CodeAnalyzer:
     """
@@ -14,7 +14,12 @@ class CodeAnalyzer:
     def __init__(self):
         self.cleaner = CodeCleaner()
         self.tokenizer = Tokenizer()
-        self.metric = DifflibMetric()
+        self.metrics = {
+            "词汇重合度 (Jaccard)": JaccardMetric(),
+            "逻辑顺序相似度 (LCS)": LCSMetric(),
+            "序列匹配度 (SeqMatch)": SequenceSimilarityMetric(),
+            "编辑距离相似度 (Levenshtein)": LevenshteinMetric()
+        }
 
     def run_analysis(self, files: List[str]) -> List[ComparisonResult]:
         """
@@ -37,25 +42,25 @@ class CodeAnalyzer:
                 tokens_a = self.tokenizer.tokenize(cleaned_a)
                 tokens_b = self.tokenizer.tokenize(cleaned_b)
 
-                '''
-                token_str_a = " ".join([tok.string for tok in tokens_a])
-                token_str_b = " ".join([tok.string for tok in tokens_b])
-                '''
+                current_scores = {}
+                for name, metric_calculator in self.metrics.items():
+                    score = metric_calculator.calculate(tokens_a, tokens_b)
+                    current_scores[name] = score
+
+                # --- 临时过渡：高亮片段仍然使用SeqMatch的结果 ---
+                # TODO:如果要高亮显示，高亮的位置需要映射回原始代码
+                # 未来可以优化为根据不同指标显示不同高亮
+                _, segments = SequenceSimilarityMetric().calculate(tokens_a, tokens_b) if isinstance(SequenceSimilarityMetric().calculate(tokens_a, tokens_b), tuple) else (None, [])
+                # --- 过渡结束 ---
                 
-                # NOTE：使用清理后的代码进行相似度计算，这是一个过渡步骤
-                # 实际应该使用词法分析后的序列化列表评估
-                # TODO:未来的新指标(如Jaccard)将直接使用tokens_a/b列表。
-                score, segments = self.metric.calculate(cleaned_a, cleaned_b)
-                
-                # TODO:如果要高亮显示，高亮的位置需要映射回原始代码，这是后续优化的点
                 result = ComparisonResult(
                     file_a=path_a,
                     file_b=path_b,
                     score=score,
-                    # 目前segments是基于清理后代码的，暂时保留
                     segments=segments 
                 )
                 results.append(result)
 
-        results.sort(key=lambda x: x.score, reverse=True)
-        return results
+        # TODO:暂时默认为LCS，后续替换为综合指标
+        default_sort_key = "逻辑顺序相似度 (LCS)"
+        results.sort(key=lambda x: x.scores.get(default_sort_key, 0), reverse=True)        return results
