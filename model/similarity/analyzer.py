@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import List
+from difflib import SequenceMatcher
 
 from .preprocessors import CodeCleaner, Tokenizer
 from .result import ComparisonResult
@@ -15,10 +16,10 @@ class CodeAnalyzer:
         self.cleaner = CodeCleaner()
         self.tokenizer = Tokenizer()
         self.metrics = {
-            "词汇重合度 (Jaccard)": JaccardMetric(),
-            "逻辑顺序相似度 (LCS)": LCSMetric(),
-            "序列匹配度 (SeqMatch)": SequenceSimilarityMetric(),
-            "编辑距离相似度 (Levenshtein)": LevenshteinMetric()
+            "词汇重合度": JaccardMetric(),
+            "逻辑顺序相似度": LCSMetric(),
+            "序列匹配度": SequenceSimilarityMetric(),
+            "编辑距离相似度": LevenshteinMetric()
         }
 
     def run_analysis(self, files: List[str]) -> List[ComparisonResult]:
@@ -50,17 +51,24 @@ class CodeAnalyzer:
                 # --- 临时过渡：高亮片段仍然使用SeqMatch的结果 ---
                 # TODO:如果要高亮显示，高亮的位置需要映射回原始代码
                 # 未来可以优化为根据不同指标显示不同高亮
-                _, segments = SequenceSimilarityMetric().calculate(tokens_a, tokens_b) if isinstance(SequenceSimilarityMetric().calculate(tokens_a, tokens_b), tuple) else (None, [])
+                matcher = SequenceMatcher(None, tokens_a, tokens_b)
+                segments = []
+                for block in matcher.get_matching_blocks():
+                     if block.size > 0:
+                        # NOTE：这里的位置是基于Token列表的索引，而非原始代码的字符索引
+                        segments.append((block.a, block.a + block.size,
+                                         block.b, block.b + block.size))
                 # --- 过渡结束 ---
                 
                 result = ComparisonResult(
                     file_a=path_a,
                     file_b=path_b,
-                    score=score,
+                    scores=current_scores,
                     segments=segments 
                 )
                 results.append(result)
 
         # TODO:暂时默认为LCS，后续替换为综合指标
         default_sort_key = "逻辑顺序相似度 (LCS)"
-        results.sort(key=lambda x: x.scores.get(default_sort_key, 0), reverse=True)        return results
+        results.sort(key=lambda x: x.scores.get(default_sort_key, 0), reverse=True)        
+        return results
