@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 from difflib import SequenceMatcher
 
-from .preprocessors import CodeCleaner, Tokenizer
+from .preprocessors import Tokenizer
 from .result import ComparisonResult
 from .metrics import JaccardMetric, LCSMetric, SequenceSimilarityMetric, LevenshteinMetric
 
@@ -13,7 +13,6 @@ class CodeAnalyzer:
     代码分析器，负责协调整个查重流程。
     """
     def __init__(self):
-        self.cleaner = CodeCleaner()
         self.tokenizer = Tokenizer()
         self.metrics = {
             "词汇重合度": JaccardMetric(),
@@ -31,22 +30,33 @@ class CodeAnalyzer:
 
         for i in range(n):
             for j in range(i + 1, n):
-                path_a = files[i]
-                path_b = files[j]
+                path_a, path_b = files[i], files[j]
+
+                # --- 调试打印 1: 打印正在比较的文件对 ---
+                print(f"\n{'='*20} DEBUG INFO {'='*20}")
+                print(f"正在比较: {Path(path_a).name}  vs  {Path(path_b).name}")
+                # --- 调试打印结束 ---
 
                 code_a = Path(path_a).read_text(encoding='utf-8')
                 code_b = Path(path_b).read_text(encoding='utf-8')
-                
-                cleaned_a = self.cleaner.clean(code_a)
-                cleaned_b = self.cleaner.clean(code_b)
 
-                tokens_a = self.tokenizer.tokenize(cleaned_a)
-                tokens_b = self.tokenizer.tokenize(cleaned_b)
+                tokens_a = self.tokenizer.get_token_strings(code_a)
+                tokens_b = self.tokenizer.get_token_strings(code_b)
+
+                # --- 调试打印 2: 打印生成的Token序列（部分） ---
+                print(f"  -> {Path(path_a).name} 的Token序列 (前20个): {tokens_a[:20]}")
+                print(f"  -> {Path(path_b).name} 的Token序列 (前20个): {tokens_b[:20]}")
+                # --- 调试打印结束 ---
 
                 current_scores = {}
+                                # --- 调试打印 3: 打印每个指标的独立计算结果 ---
+                print("  -> 各指标计算结果:")
                 for name, metric_calculator in self.metrics.items():
                     score = metric_calculator.calculate(tokens_a, tokens_b)
+                    print(f"    - {name}: {score:.4f}") # 打印到小数点后4位
                     current_scores[name] = score
+                print(f"{'='*52}")
+                # --- 调试打印结束 ---
 
                 # --- 临时过渡：高亮片段仍然使用SeqMatch的结果 ---
                 # TODO:如果要高亮显示，高亮的位置需要映射回原始代码
