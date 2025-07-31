@@ -1,6 +1,6 @@
 # model/similarity/result.py
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 class ComparisonResult:
     """
@@ -9,9 +9,9 @@ class ComparisonResult:
     def __init__(self,
                  file_a: str,
                  file_b: str,
-                 score: float,
+                 scores: Dict[str, float],
                  segments: List[Tuple[int, int, int, int]]):
         self.file_a = file_a
         self.file_b = file_b
-        self.score = score
+        self.scores = scores
         self.segments = segments
