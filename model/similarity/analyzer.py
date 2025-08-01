@@ -1,12 +1,14 @@
 # model/similarity/analyzer.py
 
+import ast
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 from difflib import SequenceMatcher
 
 from .preprocessors import Tokenizer
 from .result import ComparisonResult
-from .metrics import JaccardMetric, LCSMetric, SequenceSimilarityMetric, LevenshteinMetric
+from .metrics import (JaccardMetric, LCSMetric, SequenceSimilarityMetric, 
+                      LevenshteinMetric, ASTFingerprintMetric, ASTHistogramMetric)
 
 class CodeAnalyzer:
     """
@@ -18,7 +20,9 @@ class CodeAnalyzer:
             "词汇重合度": JaccardMetric(),
             "逻辑顺序相似度": LCSMetric(),
             "序列匹配度": SequenceSimilarityMetric(),
-            "编辑距离相似度": LevenshteinMetric()
+            # "编辑距离相似度": LevenshteinMetric(),
+            "结构指纹相似度": ASTFingerprintMetric(),
+            "语法构成相似度": ASTHistogramMetric()
         }
 
     def run_analysis(self, files: List[str]) -> List[ComparisonResult]:
@@ -32,31 +36,27 @@ class CodeAnalyzer:
             for j in range(i + 1, n):
                 path_a, path_b = files[i], files[j]
 
-                # --- 调试打印 1: 打印正在比较的文件对 ---
-                print(f"\n{'='*20} DEBUG INFO {'='*20}")
-                print(f"正在比较: {Path(path_a).name}  vs  {Path(path_b).name}")
-                # --- 调试打印结束 ---
-
                 code_a = Path(path_a).read_text(encoding='utf-8')
                 code_b = Path(path_b).read_text(encoding='utf-8')
 
                 tokens_a = self.tokenizer.get_token_strings(code_a)
                 tokens_b = self.tokenizer.get_token_strings(code_b)
 
-                # --- 调试打印 2: 打印生成的Token序列（部分） ---
-                print(f"  -> {Path(path_a).name} 的Token序列 (前20个): {tokens_a[:20]}")
-                print(f"  -> {Path(path_b).name} 的Token序列 (前20个): {tokens_b[:20]}")
-                # --- 调试打印结束 ---
+                tree_a, tree_b = None, None
+                try:
+                    tree_a = ast.parse(code_a)
+                    tree_b = ast.parse(code_b)
+                except SyntaxError as e:
+                    print(f"AST解析失败，跳过AST指标计算: {e}")
 
                 current_scores = {}
-                                # --- 调试打印 3: 打印每个指标的独立计算结果 ---
-                print("  -> 各指标计算结果:")
                 for name, metric_calculator in self.metrics.items():
-                    score = metric_calculator.calculate(tokens_a, tokens_b)
-                    print(f"    - {name}: {score:.4f}") # 打印到小数点后4位
+                    score = 0.0
+                    if isinstance(metric_calculator, (ASTFingerprintMetric, ASTHistogramMetric)):
+                        score = metric_calculator.calculate(tree_a, tree_b)
+                    else:
+                        score = metric_calculator.calculate(tokens_a, tokens_b)
                     current_scores[name] = score
-                print(f"{'='*52}")
-                # --- 调试打印结束 ---
 
                 # --- 临时过渡：高亮片段仍然使用SeqMatch的结果 ---
                 # TODO:如果要高亮显示，高亮的位置需要映射回原始代码

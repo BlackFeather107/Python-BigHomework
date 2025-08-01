@@ -1,8 +1,12 @@
 # model/similarity/metrics.py
 
 from difflib import SequenceMatcher
-from typing import List
+from typing import List, Dict, Set
+import ast
+import math
+from .ast_handler import get_ast_fingerprints, get_ast_histogram
 
+# --- Token-based Metrics ---
 class JaccardMetric:
     """计算杰卡德相似度。"""
 
@@ -59,6 +63,7 @@ class SequenceSimilarityMetric:
         matcher = SequenceMatcher(None, tokens_a, tokens_b)
         return matcher.ratio()
     
+# Levenshtein开销大，效果和SequenceMatcher重合，暂时不要了
 class LevenshteinMetric:
     """
     计算经典的编辑距离（Levenshtein Distance）并转换为相似度比率。
@@ -101,3 +106,34 @@ class LevenshteinMetric:
         similarity = 1.0 - (distance / max_len)
         
         return similarity
+
+# --- AST-based Metrics (新增) ---
+
+class ASTFingerprintMetric:
+    """计算结构指纹的Jaccard相似度。"""
+    def calculate(self, tree_a: ast.AST, tree_b: ast.AST) -> float:
+        fingerprints_a = get_ast_fingerprints(tree_a)
+        fingerprints_b = get_ast_fingerprints(tree_b)
+        
+        intersection = fingerprints_a.intersection(fingerprints_b)
+        union = fingerprints_a.union(fingerprints_b)
+
+        return len(intersection) / len(union) if union else 1.0
+
+class ASTHistogramMetric:
+    """计算节点直方图的余弦相似度。"""
+    def calculate(self, tree_a: ast.AST, tree_b: ast.AST) -> float:
+        hist_a = get_ast_histogram(tree_a)
+        hist_b = get_ast_histogram(tree_b)
+
+        # 构建两个向量的点积和模长
+        all_keys = set(hist_a.keys()).union(set(hist_b.keys()))
+        dot_product = sum(hist_a.get(key, 0) * hist_b.get(key, 0) for key in all_keys)
+        
+        mag_a = math.sqrt(sum(val**2 for val in hist_a.values()))
+        mag_b = math.sqrt(sum(val**2 for val in hist_b.values()))
+
+        if mag_a == 0 or mag_b == 0:
+            return 1.0 if mag_a == mag_b else 0.0
+        
+        return dot_product / (mag_a * mag_b)
