@@ -17,12 +17,20 @@ class CodeAnalyzer:
     def __init__(self):
         self.tokenizer = Tokenizer()
         self.metrics = {
-            "词汇重合度": JaccardMetric(),
-            "逻辑顺序相似度": LCSMetric(),
-            "序列匹配度": SequenceSimilarityMetric(),
             # "编辑距离相似度": LevenshteinMetric(),
+            "逻辑顺序相似度": LCSMetric(),
             "结构指纹相似度": ASTFingerprintMetric(),
+            "词汇重合度": JaccardMetric(),
+            "序列匹配度": SequenceSimilarityMetric(),
             "语法构成相似度": ASTHistogramMetric()
+        }
+        self.weights = {
+            # "编辑距离相似度": LevenshteinMetric(),
+            "逻辑顺序相似度": 0.35,
+            "结构指纹相似度": 0.35,
+            "词汇重合度": 0.10,
+            "序列匹配度": 0.10,
+            "语法构成相似度": 0.10
         }
 
     def run_analysis(self, files: List[str]) -> List[ComparisonResult]:
@@ -57,6 +65,13 @@ class CodeAnalyzer:
                     else:
                         score = metric_calculator.calculate(tokens_a, tokens_b)
                     current_scores[name] = score
+                
+                # 将综合分也存入分数字典
+                composite_score = 0.0
+                for name, score in current_scores.items():
+                    composite_score += score * self.weights.get(name, 0)
+                
+                current_scores["综合可疑度"] = composite_score
 
                 # --- 临时过渡：高亮片段仍然使用SeqMatch的结果 ---
                 # TODO:如果要高亮显示，高亮的位置需要映射回原始代码
@@ -78,7 +93,6 @@ class CodeAnalyzer:
                 )
                 results.append(result)
 
-        # TODO:暂时默认为LCS，后续替换为综合指标
-        default_sort_key = "逻辑顺序相似度 (LCS)"
+        default_sort_key = "综合可疑度"
         results.sort(key=lambda x: x.scores.get(default_sort_key, 0), reverse=True)        
         return results

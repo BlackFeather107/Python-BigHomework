@@ -10,11 +10,12 @@ from view.result_list import ResultListView
 from view.detail_view import DetailView
 
 METRIC_DESCRIPTIONS = {
-    "词汇重合度 (Jaccard)": "衡量两份代码使用了多少相同的“词汇”（如变量名、函数名等），不考虑代码顺序。此指标越高，说明两份代码的“用词”越相似。",
-    "逻辑顺序相似度 (LCS)": "衡量两份代码是否存在大量逻辑顺序相同的代码片段。此指标越高，说明一份代码很可能是从另一份直接复制并稍加修改得来的。",
-    "序列匹配度 (SeqMatch)": "通过寻找两份代码中最长的连续匹配块，并递归地处理剩余部分，来计算总体的匹配程度。此指标越高，说明两份代码中可以找到的相同代码片段越多、越长。",
-    "结构指纹相似度 (AST)": "通过提取代码中的核心逻辑结构（如循环、判断分支等）并生成“指纹”，来比较两份代码在架构上的相似性。此指标越高，说明代码的“骨架”越相似。",
-    "语法构成相似度 (AST)": "通过统计代码中各类语法元素（赋值、函数调用、算术运算等）的使用频率，来比较两份代码在编程风格和语法构成上的相似性。"
+    "综合可疑度": "综合所有单一指标的加权平均分，作为评估整体抄袭可能性的主要依据。",
+    "逻辑顺序相似度": "衡量两份代码是否存在大量逻辑顺序相同的代码片段。此指标越高，说明一份代码很可能是从另一份直接复制并稍加修改得来的。",
+    "结构指纹相似度": "通过提取代码中的核心逻辑结构（如循环、判断分支等）并生成“指纹”，来比较两份代码在架构上的相似性。此指标越高，说明代码的“骨架”越相似。",
+    "词汇重合度": "衡量两份代码使用了多少相同的“词汇”（如变量名、函数名等），不考虑代码顺序。此指标越高，说明两份代码的“用词”越相似。",
+    "序列匹配度": "通过寻找两份代码中最长的连续匹配块，并递归地处理剩余部分，来计算总体的匹配程度。此指标越高，说明两份代码中可以找到的相同代码片段越多、越长。",
+    "语法构成相似度": "通过统计代码中各类语法元素（赋值、函数调用、算术运算等）的使用频率，来比较两份代码在编程风格和语法构成上的相似性。"
 }
 
 class MainWindow(QMainWindow):
@@ -22,9 +23,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Python 代码查重工具")
-        self.resize(1400, 800) # 这里稍微扩大了一些
+        self.resize(1400, 800)
 
-        self.all_metrics = list(self.controller.analyzer.metrics.keys())
+        base_metrics = list(self.controller.analyzer.metrics.keys())
+        self.all_metrics = ["综合可疑度"] + base_metrics
         self.active_metrics = self.all_metrics[:]
 
         # 主容器
@@ -98,7 +100,7 @@ class MainWindow(QMainWindow):
             display_name = metric_name.split('(')[0].strip()
             checkbox = QCheckBox(display_name)
             checkbox.setChecked(True) # 默认全部选中
-            description = METRIC_DESCRIPTIONS.get(metric_name, "暂无简介")
+            description = METRIC_DESCRIPTIONS.get(display_name, "暂无简介")
             checkbox.setToolTip(description) # 添加Tooltip
             checkbox.stateChanged.connect(
                 lambda state, name=metric_name: self.on_metric_toggled(name, state)
