@@ -1,8 +1,12 @@
 # controller/main_controller.py
 
+import uuid
 from pathlib import Path
+from datetime import datetime
 from model.file_manager import FileManager
-from model.similarity import SimilarityAnalyzer, ComparisonResult
+from model.similarity import CodeAnalyzer, ComparisonResult
+from model.similarity.result import AnalysisSession
+from model.history_manager import HistoryManager
 from view.result_list import ResultListView
 from view.detail_view import DetailView
 
@@ -14,7 +18,13 @@ class MainController:
     def __init__(self):
         # 模型
         self.file_manager = FileManager()
-        self.analyzer = SimilarityAnalyzer()
+        self.analyzer = CodeAnalyzer()
+        self.history_manager = HistoryManager()
+        
+        # 当前会话
+        self.current_session: AnalysisSession = None
+        self.login_time = datetime.now()
+        
         # 视图（在 MainWindow 中注入）
         self.result_view: ResultListView = None  # type: ignore
         self.detail_view: DetailView = None      # type: ignore
@@ -26,6 +36,13 @@ class MainController:
         """
         try:
             self.file_manager.load_directory(directory)
+            # 创建新的分析会话
+            session_id = str(uuid.uuid4())
+            self.current_session = AnalysisSession(
+                session_id=session_id,
+                directory=directory,
+                login_time=self.login_time
+            )
         except Exception as e:
             # 视图层可扩展 error handling
             print(f"加载目录失败: {e}")
@@ -39,11 +56,20 @@ class MainController:
         if not files:
             print("无文件可查重")
             return
+        
         # 执行匹配分析
-        results: list[ComparisonResult] = self.analyzer.compute_all_pairs(files)
+        results = self.analyzer.run_analysis(files)
+        
+        # 将结果添加到当前会话
+        if self.current_session:
+            for result in results:
+                self.current_session.add_result(result)
+            # 保存到历史记录
+            self.history_manager.add_session(self.current_session)
+        
         # 更新列表视图
         if self.result_view:
-            self.result_view.display(results)
+            self.result_view.set_data(results)
 
     def show_detail(self, comparison: ComparisonResult) -> None:
         """
@@ -51,5 +77,41 @@ class MainController:
         """
         if self.detail_view:
             self.detail_view.show(comparison)
+
+    def get_login_time(self) -> datetime:
+        """获取登录时间"""
+        return self.login_time
+
+    def get_all_sessions(self):
+        """获取所有历史会话"""
+        return self.history_manager.get_all_sessions()
+
+    def load_session(self, session_id: str):
+        """加载指定的历史会话"""
+        session = self.history_manager.get_session_by_id(session_id)
+        if session and self.result_view:
+            self.result_view.set_data(session.results)
+            return session
+        return None
+
+    def mark_plagiarism(self, file_a: str, file_b: str, is_plagiarism: bool, notes: str = ""):
+        """标记抄袭状态"""
+        if self.current_session:
+            self.history_manager.update_result_plagiarism_status(
+                self.current_session.session_id,
+                file_a, file_b, is_plagiarism, notes
+            )
+
+    def export_plagiarism_report(self, output_file: str) -> bool:
+        """导出抄袭报告"""
+        return self.history_manager.export_plagiarism_report(output_file)
+
+    def export_plagiarism_files(self, output_dir: str) -> bool:
+        """导出抄袭文件"""
+        return self.history_manager.export_plagiarism_files(output_dir)
+
+    def get_plagiarism_sessions(self):
+        """获取包含抄袭判定的会话"""
+        return self.history_manager.get_plagiarism_sessions()
 
     # 可扩展：导出报告、日志记录等方法
