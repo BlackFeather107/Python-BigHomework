@@ -35,7 +35,7 @@ class MainController:
         对已加载的文件执行两两查重，按重复率降序。
         将结果传递给 ResultListView 更新显示。
         """
-        files = [str(p) for p in self.file_manager.files]
+        files = [str(p) for p in self.file_manager.sorted_files]
         if not files:
             print("无文件可查重")
             return

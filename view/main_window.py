@@ -55,11 +55,11 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(top_buttons_layout)
         # 详细视图
         self.detail_view = DetailView()
-        right_panel.addWidget(self.detail_view, 1)
+        right_layout.addWidget(self.detail_view, 1)
 
         # 日志标签
         self.log_label = QLabel("状态：就绪")
-        right_panel.addWidget(self.log_label)
+        right_layout.addWidget(self.log_label)
 
         # 将三个面板添加到QSplitter中
         main_splitter.addWidget(left_panel)
@@ -80,7 +80,9 @@ class MainWindow(QMainWindow):
             
             # 更新文件列表
             self.file_list_widget.clear()
-            files = self.controller.file_manager.files
+            files = self.controller.file_manager.sorted_files
+            # --- 调试打印 3 ---
+            print(f"[DEBUG MainWindow] 从 Controller 获取到 {len(files)} 个文件用于显示。")
             if files:
                 for file_path in files:
                     self.file_list_widget.addItem(Path(file_path).name)
