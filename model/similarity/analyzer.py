@@ -4,6 +4,7 @@ import ast
 from pathlib import Path
 from typing import List, Dict
 from difflib import SequenceMatcher
+from datetime import datetime
 
 from .preprocessors import Tokenizer
 from .result import ComparisonResult
@@ -89,7 +90,8 @@ class CodeAnalyzer:
                     file_a=path_a,
                     file_b=path_b,
                     scores=current_scores,
-                    segments=segments 
+                    segments=segments,
+                    analysis_time=datetime.now()
                 )
                 results.append(result)
 
