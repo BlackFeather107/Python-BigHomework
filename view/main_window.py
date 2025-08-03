@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
 
     def on_metric_toggled(self, metric_name, state):
         """处理指标复选框状态改变"""
-        if state == Qt.Checked:
+        if state:
             # 如果是勾选，添加到显示列表的末尾
             if metric_name not in self.active_metrics:
                 self.active_metrics.append(metric_name)
