@@ -2,7 +2,7 @@
 
 import tokenize
 from io import StringIO
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
 import ast
 import keyword
 
@@ -61,9 +61,10 @@ class Tokenizer:
     """
     负责将原始源代码字符串直接转换为一个干净、过滤后的Token序列。
     """
-    def get_token_strings(self, source_code: str) -> List[str]:
+    def get_tokens_with_info(self, source_code: str) -> List[tokenize.TokenInfo]:
         """
-        接收原始源代码，移除文档字符串，然后返回一个只包含Token字符串的列表。
+        接收原始源代码，移除文档字符串，然后返回一个过滤后的TokenInfo对象列表。
+        TokenInfo对象本身就包含了我们需要的所有信息。
         """
         # 使用AST移除文档字符串
         source_without_docstrings = source_code
@@ -71,49 +72,54 @@ class Tokenizer:
             tree = ast.parse(source_code)
             transformer = DocstringRemover()
             transformer.visit(tree)
-            # 将修改后的AST转换回代码字符串
             source_without_docstrings = ast.unparse(tree)
         except (SyntaxError, ValueError) as e:
-            # 如果代码无法被AST解析(例如有语法错误)，则打印错误并退回到原始代码
             print(f"AST解析失败: {e}. 将在不移除文档字符串的情况下继续。")
 
-        roles: Dict[str, str] = {}
-        try:
-            tree = ast.parse(source_without_docstrings)
-            visitor = SymbolVisitor()
-            visitor.visit(tree)
-            roles = visitor.roles
-        except (SyntaxError, ValueError) as e:
-            print(f"AST解析失败: {e}. 将在不进行角色归一化的情况下继续。")
-
         # 使用tokenize处理没有文档字符串的代码
-        token_strings = []
+        processed_tokens = []
         try:
             token_generator = tokenize.generate_tokens(StringIO(source_without_docstrings).readline)
             
             for token in token_generator:
                 if token.type in (
-                    tokenize.ENCODING,
-                    tokenize.COMMENT,
-                    tokenize.NL,
-                    tokenize.NEWLINE,
-                    tokenize.INDENT,
-                    tokenize.DEDENT,
+                    tokenize.ENCODING, tokenize.COMMENT, tokenize.NL,
+                    tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT,
                     tokenize.ENDMARKER
                 ):
                     continue
                 
-                if token.type == tokenize.NAME:
-                    role = roles.get(token.string)
-                    if role:
-                        token_strings.append(role)
-                    else:
-                        # 如果是关键字，则保留原样
-                        token_strings.append(token.string)
-                else:
-                    token_strings.append(token.string)
+                processed_tokens.append(token)
+
         except (tokenize.TokenError, IndentationError) as e:
             print(f"词法分析失败: {e}")
             return []
             
-        return token_strings
+        return processed_tokens
+
+    def get_normalized_tokens(self, source_code: str, tokens_with_info: List[tokenize.TokenInfo]) -> List[str]:
+        """
+        接收原始TokenInfo列表，并返回一个归一化后的字符串列表，用于相似度计算。
+        """
+        roles: Dict[str, str] = {}
+        try:
+            # 注意：这里的AST解析应该在原始代码上进行，以获得最准确的符号角色
+            tree = ast.parse(source_code)
+            visitor = SymbolVisitor()
+            visitor.visit(tree)
+            roles = visitor.roles
+        except (SyntaxError, ValueError) as e:
+            print(f"AST符号分析失败: {e}. 将在不进行角色归一化的情况下继续。")
+
+        normalized_token_strings = []
+        for token in tokens_with_info:
+            if token.type == tokenize.NAME:
+                role = roles.get(token.string)
+                if role:
+                    normalized_token_strings.append(role)
+                else:
+                    normalized_token_strings.append(token.string)
+            else:
+                normalized_token_strings.append(token.string)
+        
+        return normalized_token_strings
