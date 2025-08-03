@@ -6,120 +6,74 @@ from typing import List, Dict, Set, Tuple
 import ast
 import keyword
 
-class DocstringRemover(ast.NodeTransformer):
+class AstProcessor(ast.NodeVisitor):
     """
-    一个AST遍历器，专门用于查找并移除函数、类和模块中的文档字符串节点。
-    """
-    def _remove_docstring(self, node):
-        if node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Str):
-            # 如果节点的第一个子元素是一个字符串表达式，它就是文档字符串，移除它
-            node.body = node.body[1:]
-        
-    def visit_FunctionDef(self, node):
-        self._remove_docstring(node)
-        self.generic_visit(node)
-        return node
-
-    def visit_ClassDef(self, node):
-        self._remove_docstring(node)
-        self.generic_visit(node)
-        return node
-
-    def visit_Module(self, node):
-        self._remove_docstring(node)
-        self.generic_visit(node)
-        return node
-
-class SymbolVisitor(ast.NodeVisitor):
-    """
-    遍历AST以识别不同类型的标识符（函数名、类名、变量名等）。
+    一个多功能的AST遍历器，负责识别并记录标识符的角色。
     """
     def __init__(self):
         self.roles: Dict[str, str] = {}
         self.keywords: Set[str] = set(keyword.kwlist)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        # 标记函数定义名称
         self.roles[node.name] = 'FUNC'
-        # 递归访问函数内部
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef):
-        # 标记类定义名称
         self.roles[node.name] = 'CLASS'
-        # 递归访问类内部
         self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name):
-        # 标记所有其他的标识符（变量、参数等）
-        # 只有当它不是关键字，并且还没被赋予更具体的角色时才标记
         if node.id not in self.keywords and node.id not in self.roles:
             self.roles[node.id] = 'VAR'
         self.generic_visit(node)
 
 class Tokenizer:
     """
-    负责将原始源代码字符串直接转换为一个干净、过滤后的Token序列。
+    负责将源代码字符串转换为用于高亮和计算的Token序列。
     """
-    def get_tokens_with_info(self, source_code: str) -> List[tokenize.TokenInfo]:
+    def process_source(self, source_code: str) -> Tuple[List[str], List[tokenize.TokenInfo]]:
         """
-        接收原始源代码，移除文档字符串，然后返回一个过滤后的TokenInfo对象列表。
-        TokenInfo对象本身就包含了我们需要的所有信息。
+        处理源代码，返回一个元组：
+        1. 用于计算的归一化Token字符串列表。
+        2. 用于高亮的原始TokenInfo对象列表（不过滤任何东西）。
         """
-        # 使用AST移除文档字符串
-        source_without_docstrings = source_code
-        try:
-            tree = ast.parse(source_code)
-            transformer = DocstringRemover()
-            transformer.visit(tree)
-            source_without_docstrings = ast.unparse(tree)
-        except (SyntaxError, ValueError) as e:
-            print(f"AST解析失败: {e}. 将在不移除文档字符串的情况下继续。")
-
-        # 使用tokenize处理没有文档字符串的代码
-        processed_tokens = []
-        try:
-            token_generator = tokenize.generate_tokens(StringIO(source_without_docstrings).readline)
-            
-            for token in token_generator:
-                if token.type in (
-                    tokenize.ENCODING, tokenize.COMMENT, tokenize.NL,
-                    tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT,
-                    tokenize.ENDMARKER
-                ):
-                    continue
-                
-                processed_tokens.append(token)
-
-        except (tokenize.TokenError, IndentationError) as e:
-            print(f"词法分析失败: {e}")
-            return []
-            
-        return processed_tokens
-
-    def get_normalized_tokens(self, source_code: str, tokens_with_info: List[tokenize.TokenInfo]) -> List[str]:
-        """
-        接收原始TokenInfo列表，并返回一个归一化后的字符串列表，用于相似度计算。
-        """
+        # 使用AST进行符号分析
         roles: Dict[str, str] = {}
         try:
-            # 注意：这里的AST解析应该在原始代码上进行，以获得最准确的符号角色
             tree = ast.parse(source_code)
-            visitor = SymbolVisitor()
+            visitor = AstProcessor()
             visitor.visit(tree)
             roles = visitor.roles
         except (SyntaxError, ValueError) as e:
-            print(f"AST符号分析失败: {e}. 将在不进行角色归一化的情况下继续。")
+            print(f"AST处理失败: {e}. 将在不进行角色归一化的情况下继续。")
 
-        normalized_token_strings = []
-        for token in tokens_with_info:
-            if token.type == tokenize.NAME:
-                role = roles.get(token.string)
-                if role:
-                    normalized_token_strings.append(role)
+        # 一次性生成两套Token列表
+        tokens_for_calc = []
+        tokens_for_highlight = []
+        try:
+            token_generator = tokenize.generate_tokens(StringIO(source_code).readline)
+            for token in token_generator:
+                # 高亮列表包含所有可见Token，只过滤掉对定位无意义的
+                if token.type not in (tokenize.ENCODING, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER):
+                    tokens_for_highlight.append(token)
+
+                # 计算列表则进行深度过滤和归一化
+                if token.type in (tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT,
+                                  tokenize.ENCODING, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER):
+                    continue
+                
+                # 忽略文档字符串和其他字符串字面量
+                if token.type == tokenize.STRING:
+                    continue
+                
+                if token.type == tokenize.NAME:
+                    role = roles.get(token.string)
+                    tokens_for_calc.append(role if role else token.string)
                 else:
-                    normalized_token_strings.append(token.string)
-            else:
-                normalized_token_strings.append(token.string)
-        
-        return normalized_token_strings
+                    tokens_for_calc.append(token.string)
+
+        except (tokenize.TokenError, IndentationError) as e:
+            print(f"词法分析失败: {e}")
+            return [], []
+            
+        return tokens_for_calc, tokens_for_highlight

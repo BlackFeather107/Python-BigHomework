@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+import tokenize
 from typing import List, Dict, Tuple
 from difflib import SequenceMatcher
 from datetime import datetime
@@ -47,11 +48,8 @@ class CodeAnalyzer:
                 code_a = Path(path_a).read_text(encoding='utf-8')
                 code_b = Path(path_b).read_text(encoding='utf-8')
 
-                tokens_with_info_a = self.tokenizer.get_tokens_with_info(code_a)
-                tokens_with_info_b = self.tokenizer.get_tokens_with_info(code_b)
-
-                tokens_a = self.tokenizer.get_normalized_tokens(code_a, tokens_with_info_a)
-                tokens_b = self.tokenizer.get_normalized_tokens(code_b, tokens_with_info_b)
+                tokens_for_calc_a, tokens_for_highlight_a = self.tokenizer.process_source(code_a)
+                tokens_for_calc_b, tokens_for_highlight_b = self.tokenizer.process_source(code_b)
 
                 tree_a, tree_b = None, None
                 try:
@@ -66,7 +64,7 @@ class CodeAnalyzer:
                     if isinstance(metric_calculator, (ASTFingerprintMetric, ASTHistogramMetric)):
                         score = metric_calculator.calculate(tree_a, tree_b)
                     else:
-                        score = metric_calculator.calculate(tokens_a, tokens_b)
+                        score = metric_calculator.calculate(tokens_for_calc_a, tokens_for_calc_b)
                     current_scores[name] = score
                 
                 # 将综合分也存入分数字典
@@ -76,31 +74,25 @@ class CodeAnalyzer:
                 
                 current_scores["综合可疑度"] = composite_score
 
-                # 使用归一化的Token进行匹配
-                matcher = SequenceMatcher(None, tokens_a, tokens_b)
+                # 匹配应高亮的部分
+                highlight_strings_a = [tok.string for tok in tokens_for_highlight_a]
+                highlight_strings_b = [tok.string for tok in tokens_for_highlight_b]
+                
+                matcher = SequenceMatcher(None, highlight_strings_a, highlight_strings_b)
                 segments = []
                 for block in matcher.get_matching_blocks():
                      if block.size > 0:
-                        # block.a 和 block.b 是在 normalized_tokens 列表中的起始索引
-                        # block.size 是匹配的Token数量
+                        # 现在 block.a 和 block.b 的索引可以直接用于 tokens_for_highlight 列表
+                        start_token_a = tokens_for_highlight_a[block.a]
+                        end_token_a = tokens_for_highlight_a[block.a + block.size - 1]
                         
-                        # 从带位置信息的列表中，找到起始Token和结束Token
-                        start_token_a = tokens_with_info_a[block.a]
-                        end_token_a = tokens_with_info_a[block.a + block.size - 1]
+                        start_token_b = tokens_for_highlight_b[block.b]
+                        end_token_b = tokens_for_highlight_b[block.b + block.size - 1]
                         
-                        start_token_b = tokens_with_info_b[block.b]
-                        end_token_b = tokens_with_info_b[block.b + block.size - 1]
-
-                        # 提取它们的字符位置 (line, col)
-                        # TokenInfo.start 是 (line, col)，TokenInfo.end 是 (line, col)
-                        # 我们需要将它们转换为绝对字符偏移量
-                        start_char_a = self._pos_to_char(code_a, start_token_a.start)
-                        end_char_a = self._pos_to_char(code_a, end_token_a.end)
-
-                        start_char_b = self._pos_to_char(code_b, start_token_b.start)
-                        end_char_b = self._pos_to_char(code_b, end_token_b.end)
-                        
-                        segments.append((start_char_a, end_char_a, start_char_b, end_char_b))
+                        segments.append((
+                            start_token_a.start, end_token_a.end,
+                            start_token_b.start, end_token_b.end
+                        ))
                 
                 result = ComparisonResult(
                     file_a=path_a,
@@ -115,12 +107,12 @@ class CodeAnalyzer:
         results.sort(key=lambda x: x.scores.get(default_sort_key, 0), reverse=True)        
         return results
 
-    def _pos_to_char(self, source_code: str, pos: Tuple[int, int]) -> int:
+    def _create_token_map(self, highlight_tokens: List[tokenize.TokenInfo]) -> List[int]:
         """
-        辅助函数：将 (行号, 列号) 转换为字符串中的绝对字符索引。
+        创建一个从计算Token索引到高亮Token索引的映射。
         """
-        line, col = pos
-        lines = source_code.splitlines(True) # True保留换行符
-        char_offset = sum(len(l) for l in lines[:line - 1])
-        char_offset += col
-        return char_offset
+        mapping = []
+        for i, token in enumerate(highlight_tokens):
+            if token.type not in (tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT, tokenize.STRING):
+                mapping.append(i)
+        return mapping

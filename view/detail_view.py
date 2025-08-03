@@ -17,25 +17,26 @@ class CodeHighlighter(QSyntaxHighlighter):
         """
         在给定的文本块（一行代码）上应用高亮。
         """
-        # block_start 是当前行在整个文档中的起始字符位置
-        block_start = self.currentBlock().position()
-        block_end = block_start + len(text)
+        # 获取当前行的行号（1-based）
+        current_line_num = self.currentBlock().blockNumber() + 1
 
-        for (a_start, a_end, b_start, b_end) in self.segments:
+        for segment in self.segments:
             # 根据当前是文件A还是文件B，选择对应的坐标
-            start_char = a_start if self.is_file_a else b_start
-            end_char = a_end if self.is_file_a else b_end
+            start_pos, end_pos = (segment[0], segment[1]) if self.is_file_a else (segment[2], segment[3])
+            
+            start_line, start_col = start_pos
+            end_line, end_col = end_pos
 
-            # 检查当前行与高亮区域是否有交集
-            # (max(s1, s2) < min(e1, e2))
-            if max(block_start, start_char) < min(block_end, end_char):
-                # 计算在当前行内需要高亮的起始位置和长度
-                highlight_start_in_block = max(0, start_char - block_start)
-                highlight_end_in_block = min(len(text), end_char - block_start)
-                highlight_length = highlight_end_in_block - highlight_start_in_block
+            # 检查当前行是否在需要高亮的范围之内
+            if start_line <= current_line_num <= end_line:
+                # 计算在当前行内高亮的起始列和结束列
+                highlight_start_col = start_col if current_line_num == start_line else 0
+                highlight_end_col = end_col if current_line_num == end_line else len(text)
                 
-                if highlight_length > 0:
-                    self.setFormat(highlight_start_in_block, highlight_length, self.format)
+                # 应用高亮
+                length = highlight_end_col - highlight_start_col
+                if length > 0:
+                    self.setFormat(highlight_start_col, length, self.format)
 
 class DetailView(QWidget):
     def __init__(self):
