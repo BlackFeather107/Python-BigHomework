@@ -2,6 +2,7 @@
 
 import uuid
 from pathlib import Path
+from typing import List
 from datetime import datetime
 from model.file_manager import FileManager
 from model.similarity import CodeAnalyzer, ComparisonResult
@@ -32,19 +33,20 @@ class MainController:
     def import_directory(self, directory: str) -> None:
         """
         加载指定目录下所有的 .py 文件。
-        并将结果通知日志，由 MainWindow 接管显示。
         """
         try:
             self.file_manager.load_directory(directory)
-            # 创建新的分析会话
-            session_id = str(uuid.uuid4())
-            self.current_session = AnalysisSession(
-                session_id=session_id,
-                directory=directory,
-                login_time=self.login_time
-            )
         except Exception as e:
-            # 视图层可扩展 error handling
+            print(f"加载目录失败: {e}")
+
+    def import_files(self, file_paths: List[str]) -> None:
+        """
+        加载指定路径的单个或多个 .py 文件。
+        并将结果通知日志，由 MainWindow 接管显示。
+        """
+        try:
+            self.file_manager.load_files(file_paths)
+        except Exception as e:
             print(f"加载目录失败: {e}")
 
     def trigger_analysis(self) -> None:
@@ -57,6 +59,15 @@ class MainController:
             print("无文件可查重")
             return
         
+        # 创建会话
+        session_id = str(uuid.uuid4())
+        session_description = f"自定义导入 ({len(files)}个文件)"
+        self.current_session = AnalysisSession(
+            session_id=session_id,
+            directory=session_description,
+            login_time=self.login_time
+        )
+
         # 执行匹配分析
         results = self.analyzer.run_analysis(files)
         

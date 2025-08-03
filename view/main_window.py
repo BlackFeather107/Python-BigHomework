@@ -62,13 +62,16 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(5, 5, 5, 5)
         
-        # 导入目录按钮和运行查重按钮
+        # 导入目录按钮、导入文件按钮和运行查重按钮
         top_buttons_layout = QHBoxLayout()
-        import_btn = QPushButton("导入目录")
-        import_btn.clicked.connect(self.open_directory)
+        import_dir_btn = QPushButton("导入目录")
+        import_dir_btn.clicked.connect(self.open_directory)
+        import_files_btn = QPushButton("导入文件")
+        import_files_btn.clicked.connect(self.open_files)
         analyze_btn = QPushButton("开始查重")
         analyze_btn.clicked.connect(self.run_analysis)
-        top_buttons_layout.addWidget(import_btn)
+        top_buttons_layout.addWidget(import_dir_btn)
+        top_buttons_layout.addWidget(import_files_btn)
         top_buttons_layout.addWidget(analyze_btn)
         right_layout.addLayout(top_buttons_layout)
         
@@ -153,25 +156,31 @@ class MainWindow(QMainWindow):
     def open_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "选择代码目录")
         if directory:
-            self.log_label.setText(f"状态：已导入 {directory}")
+            self.log_label.setText(f"状态：已从目录 {Path(directory).name} 添加文件")
             self.controller.import_directory(directory)
-            
-            # 更新文件列表
-            self.file_list_widget.clear()
-            files = self.controller.file_manager.sorted_files
-            # --- 调试打印 3 ---
-            print(f"[DEBUG MainWindow] 从 Controller 获取到 {len(files)} 个文件用于显示。")
-            if files:
-                for file_path in files:
-                    self.file_list_widget.addItem(Path(file_path).name)
+            self._update_file_list_ui()
 
-            # 更新文件列表
-            self.file_list_widget.clear()
-            files = self.controller.file_manager.files
-            if files:
-                for file_path in files:
-                    self.file_list_widget.addItem(Path(file_path).name)
-            
+    def open_files(self):
+        """打开文件对话框以选择一个或多个文件"""
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self, 
+            "选择一个或多个Python文件", 
+            "", 
+            "Python 文件 (*.py)"
+        )
+        if file_paths:
+            self.log_label.setText(f"状态：已添加 {len(file_paths)} 个文件")
+            self.controller.import_files(file_paths)
+            self._update_file_list_ui()
+
+    def _update_file_list_ui(self):
+        """使用模型中的最新数据刷新左侧文件列表"""
+        self.file_list_widget.clear()
+        files = self.controller.file_manager.sorted_files
+        if files:
+            for file_path in files:
+                self.file_list_widget.addItem(Path(file_path).name)
+
     def on_item_selected(self, comparison):
         # 更新状态栏，只显示文件名
         file_a_name = Path(comparison.file_a).name

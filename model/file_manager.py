@@ -1,7 +1,7 @@
 # model/file_manager.py
 
 from pathlib import Path
-from typing import List, Set # self.files 被初始化为Set， 而不是List
+from typing import List, Set
 
 class FileManager:
     def __init__(self):
@@ -17,13 +17,18 @@ class FileManager:
             raise NotADirectoryError(f"{directory} 不是有效目录")
         # 递归搜索 .py 文件
         new_files = {p for p in dir_path.rglob('*.py') if p.is_file()}
-        # --- 调试打印 1 ---
-        print(f"[DEBUG FileManager] 在目录 {directory} 中找到 {len(new_files)} 个新文件。")
         
         self.files.update(new_files)
 
-        # --- 调试打印 2 ---
-        print(f"[DEBUG FileManager] 更新后，FileManager中总文件数: {len(self.files)}")
+    def load_files(self, file_paths: List[str]) -> None:
+        """
+        接收一个文件路径列表，验证后添加到现有文件集合中。
+        """
+        for file_path in file_paths:
+            p = Path(file_path)
+            # 确保是文件、存在且是.py文件
+            if p.is_file() and p.suffix == '.py':
+                self.files.add(p)
 
     @property
     def sorted_files(self) -> List[Path]:
