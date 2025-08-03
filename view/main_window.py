@@ -2,8 +2,9 @@
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
                              QPushButton, QFileDialog, QLabel, QGroupBox, 
-                             QCheckBox, QListWidget, QSplitter, QTabWidget)
-from PyQt5.QtCore import Qt
+                             QCheckBox, QListWidget, QSplitter, QTabWidget,
+                             QListWidgetItem, QSizePolicy)
+from PyQt5.QtCore import Qt, pyqtSignal
 from pathlib import Path
 
 from view.result_list import ResultListView
@@ -18,6 +19,36 @@ METRIC_DESCRIPTIONS = {
     "序列匹配度": "通过寻找两份代码中最长的连续匹配块，并递归地处理剩余部分，来计算总体的匹配程度。此指标越高，说明两份代码中可以找到的相同代码片段越多、越长。",
     "语法构成相似度": "通过统计代码中各类语法元素（赋值、函数调用、算术运算等）的使用频率，来比较两份代码在编程风格和语法构成上的相似性。"
 }
+
+# 自定义列表项Widget
+class FileListItemWidget(QWidget):
+    """自定义的列表项，包含文件名和一个删除按钮。"""
+    remove_clicked = pyqtSignal(Path)
+
+    def __init__(self, file_path: Path, parent=None):
+        super().__init__(parent)
+        self.file_path = file_path
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 2, 5, 2) # 紧凑布局
+        
+        # 文件名标签
+        self.label = QLabel(file_path.name)
+        self.label.setToolTip(str(file_path)) # 悬停显示完整路径
+        
+        # 删除按钮
+        self.remove_btn = QPushButton("✕") # 使用 "✕" 字符
+        self.remove_btn.setFixedSize(20, 20) # 小尺寸按钮
+        self.remove_btn.setStyleSheet("color: red; border: none; font-weight: bold;")
+        self.remove_btn.setCursor(Qt.PointingHandCursor)
+        self.remove_btn.clicked.connect(self.on_remove)
+        
+        layout.addWidget(self.label)
+        layout.addStretch() # 添加伸缩，将按钮推到最右侧
+        layout.addWidget(self.remove_btn)
+
+    def on_remove(self):
+        self.remove_clicked.emit(self.file_path)
 
 class MainWindow(QMainWindow):
     def __init__(self, controller):
@@ -34,13 +65,16 @@ class MainWindow(QMainWindow):
         main_splitter = QSplitter(Qt.Horizontal)
         self.setCentralWidget(main_splitter)
 
-        # 最左侧的文件列表面板
+        # 左上方文件列表面板区域
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(5, 5, 5, 5)
         
         file_list_label = QLabel("导入的文件列表")
         self.file_list_widget = QListWidget()
+
+        self.reset_btn = QPushButton("重置所有导入")
+        self.reset_btn.clicked.connect(self.on_reset_files)
 
         # 左下方历史记录区域
         history_label = QLabel("历史记录")
@@ -49,6 +83,7 @@ class MainWindow(QMainWindow):
         
         left_layout.addWidget(file_list_label)
         left_layout.addWidget(self.file_list_widget, 1) # 占据更多空间
+        left_layout.addWidget(self.reset_btn)
         left_layout.addWidget(history_label)
         left_layout.addWidget(self.history_view, 1)
 
@@ -174,12 +209,33 @@ class MainWindow(QMainWindow):
             self._update_file_list_ui()
 
     def _update_file_list_ui(self):
-        """使用模型中的最新数据刷新左侧文件列表"""
+        """使用自定义Widget刷新文件列表。"""
         self.file_list_widget.clear()
         files = self.controller.file_manager.sorted_files
         if files:
             for file_path in files:
-                self.file_list_widget.addItem(Path(file_path).name)
+                # 创建自定义Widget
+                item_widget = FileListItemWidget(file_path)
+                # 将自定义Widget的信号连接到处理函数
+                item_widget.remove_clicked.connect(self.on_remove_file)
+                
+                # 创建QListWidgetItem并设置其自定义Widget
+                list_item = QListWidgetItem(self.file_list_widget)
+                list_item.setSizeHint(item_widget.sizeHint())
+                self.file_list_widget.addItem(list_item)
+                self.file_list_widget.setItemWidget(list_item, item_widget)
+
+    def on_remove_file(self, file_path: Path):
+        """处理单个文件移除的请求。"""
+        self.controller.remove_file(file_path)
+        self.log_label.setText(f"状态：已移除文件 {file_path.name}")
+        self._update_file_list_ui() # 刷新UI
+
+    def on_reset_files(self):
+        """处理重置所有文件的请求。"""
+        self.controller.clear_all_files()
+        self.log_label.setText("状态：已清空所有导入的文件")
+        self._update_file_list_ui() # 刷新UI
 
     def on_item_selected(self, comparison):
         # 更新状态栏，只显示文件名

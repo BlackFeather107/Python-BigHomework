@@ -30,6 +30,14 @@ class FileManager:
             if p.is_file() and p.suffix == '.py':
                 self.files.add(p)
 
+    def remove_file(self, file_path_to_remove: Path) -> None:
+        """从集合中移除指定的文件路径。"""
+        self.files.discard(file_path_to_remove)
+
+    def clear_all(self) -> None:
+        """清空所有已导入的文件。"""
+        self.files.clear()
+
     @property
     def sorted_files(self) -> List[Path]:
         """
