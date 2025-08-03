@@ -8,7 +8,7 @@ from model.file_manager import FileManager
 from model.similarity import CodeAnalyzer, ComparisonResult
 from model.similarity.result import AnalysisSession
 from model.history_manager import HistoryManager
-from view.result_list import ResultListView
+from view.panels.center_panel import CenterPanel
 from view.detail_view import DetailView
 
 class MainController:
@@ -27,7 +27,7 @@ class MainController:
         self.login_time = datetime.now()
         
         # 视图（在 MainWindow 中注入）
-        self.result_view: ResultListView = None  # type: ignore
+        self.result_view: CenterPanel = None  # type: ignore
         self.detail_view: DetailView = None      # type: ignore
 
     def import_directory(self, directory: str) -> None:
