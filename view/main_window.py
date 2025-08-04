@@ -1,8 +1,9 @@
 # view/main_window.py
 
-from PyQt5.QtWidgets import QMainWindow, QSplitter, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QSplitter, QFileDialog, QMessageBox
 from PyQt5.QtCore import Qt
 from pathlib import Path
+from datetime import datetime
 
 # 导入新的面板类
 from view.panels.left_panel import LeftPanel
@@ -55,7 +56,6 @@ class MainWindow(QMainWindow):
         """集中管理所有信号和槽的连接。"""
         # 弹窗信号连接
         self.controller.show_auto_mark_dialog_requested.connect(self._show_auto_mark_dialog)
-        self.center_panel.auto_marking_toggled.connect(self.on_auto_marking_toggled)
 
         # 右侧面板信号 -> MainWindow槽函数
         self.right_panel.import_directory_clicked.connect(self.open_directory)
@@ -71,6 +71,10 @@ class MainWindow(QMainWindow):
         # 中间面板信号 -> MainWindow槽函数
         self.center_panel.item_clicked.connect(self.on_item_selected)
         self.center_panel.plagiarism_marked.connect(self.on_plagiarism_marked)
+        self.center_panel.view_graph_requested.connect(self.on_view_graph)
+        self.center_panel.auto_marking_toggled.connect(self.on_auto_marking_toggled)
+        self.center_panel.clear_markings_requested.connect(self.on_clear_markings)
+        self.center_panel.export_graph_requested.connect(self.on_export_graph)
 
     def _show_auto_mark_dialog(self):
         """显示自动标记提示框，并根据结果更新Controller状态"""
@@ -179,3 +183,26 @@ class MainWindow(QMainWindow):
         
         # 更新视图
         self.center_panel.update_view(self.active_metrics)
+    
+    def on_view_graph(self):
+        """处理查看关系图的请求。"""
+        self.right_panel.log_label.setText("状态：正在生成关系图...")
+        self.controller.view_plagiarism_graph()
+        self.right_panel.log_label.setText("状态：就绪")
+
+    def on_export_graph(self):
+        """处理导出关系图的请求。"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "保存关系图", 
+            f"graph_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+            "PNG图像 (*.png);;矢量图 (*.svg)"
+        )
+        if file_path:
+            self.right_panel.log_label.setText("状态：正在导出关系图...")
+            success = self.controller.export_plagiarism_graph(file_path)
+            if success:
+                QMessageBox.information(self, "成功", f"关系图已成功导出到:\n{file_path}")
+                self.right_panel.log_label.setText("状态：关系图导出成功")
+            else:
+                QMessageBox.warning(self, "失败", "关系图导出失败，请查看终端输出。")
+                self.right_panel.log_label.setText("状态：关系图导出失败")

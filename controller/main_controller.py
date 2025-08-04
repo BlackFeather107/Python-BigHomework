@@ -12,6 +12,7 @@ from model.similarity.result import AnalysisSession
 from model.history_manager import HistoryManager
 from view.panels.center_panel import CenterPanel
 from view.detail_view import DetailView
+from model.graph_handler import GraphHandler
 
 class MainController(QObject):
     """
@@ -27,6 +28,7 @@ class MainController(QObject):
         self.file_manager = FileManager()
         self.analyzer = CodeAnalyzer()
         self.history_manager = HistoryManager()
+        self.graph_handler = GraphHandler()
         
         # 当前会话
         self.current_session: AnalysisSession = None
@@ -217,4 +219,17 @@ class MainController(QObject):
         """
         return self.history_manager.get_plagiarism_sessions()
 
-    # 可扩展：导出报告、日志记录等方法
+    def view_plagiarism_graph(self):
+        """创建并显示抄袭关系图。"""
+        if self.current_session and self.current_session.results:
+            graph = self.graph_handler.create_graph(self.current_session.results)
+            self.graph_handler.draw_graph(graph)
+        else:
+            print("没有可用于生成图表的查重结果。")
+
+    def export_plagiarism_graph(self, file_path: str) -> bool:
+        """创建并导出抄袭关系图。"""
+        if self.current_session and self.current_session.results:
+            graph = self.graph_handler.create_graph(self.current_session.results)
+            return self.graph_handler.draw_graph(graph, output_path=file_path)
+        return False

@@ -7,12 +7,13 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTableWidget,
 from PyQt5.QtCore import pyqtSignal, Qt
 from pathlib import Path
 
-# ResultListView 被重命名并移动到这里
 class CenterPanel(QWidget):
     item_clicked = pyqtSignal(object)
     plagiarism_marked = pyqtSignal(str, str, bool, str)
     auto_marking_toggled = pyqtSignal(bool)
     clear_markings_requested = pyqtSignal()
+    view_graph_requested = pyqtSignal()
+    export_graph_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,14 +34,26 @@ class CenterPanel(QWidget):
         layout.addWidget(self.table)
 
         bottom_layout = QHBoxLayout()
+
         self.auto_mark_checkbox = QCheckBox("启用自动标记功能")
         self.auto_mark_checkbox.setChecked(True)
         self.auto_mark_checkbox.stateChanged.connect(lambda state: self.auto_marking_toggled.emit(bool(state)))
         layout.addWidget(self.auto_mark_checkbox)
+
         bottom_layout.addStretch()
+
+        self.view_graph_btn = QPushButton("查看抄袭关系图")
+        self.view_graph_btn.clicked.connect(self.view_graph_requested)
+        bottom_layout.addWidget(self.view_graph_btn)
+        
+        self.export_graph_btn = QPushButton("导出抄袭关系图")
+        self.export_graph_btn.clicked.connect(self.export_graph_requested)
+        bottom_layout.addWidget(self.export_graph_btn)
+
         self.clear_marks_btn = QPushButton("清除所有标记")
         self.clear_marks_btn.clicked.connect(self.clear_markings_requested) # 连接到面板信号
         bottom_layout.addWidget(self.clear_marks_btn)
+        
         layout.addLayout(bottom_layout)
     
     def set_data(self, results):
