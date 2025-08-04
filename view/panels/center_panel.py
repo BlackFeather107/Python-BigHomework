@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTableWidget,
                              QHBoxLayout, QPushButton)
 from PyQt5.QtCore import pyqtSignal, Qt
 from pathlib import Path
+from view.history_view import PlagiarismMarkDialog
 
 class CenterPanel(QWidget):
     item_clicked = pyqtSignal(object)
@@ -108,7 +109,7 @@ class CenterPanel(QWidget):
         
         if result.is_plagiarism:
             mark_action = QAction("取消抄袭标记", self)
-            mark_action.triggered.connect(lambda: self.plagiarism_marked.emit(result.file_a, result.file_b, False, result.plagiarism_notes))
+            mark_action.triggered.connect(lambda: self._unmark_plagiarism(result))
         else:
             mark_action = QAction("标记为抄袭", self)
             mark_action.triggered.connect(lambda: self._open_mark_dialog(result, True))
@@ -125,8 +126,13 @@ class CenterPanel(QWidget):
         
         menu.exec_(self.table.mapToGlobal(position))
 
+    def _unmark_plagiarism(self, result):
+        self.plagiarism_marked.emit(result.file_a, result.file_b, False, "")
+        result.is_plagiarism = False
+        result.plagiarism_notes = ""
+        self.update_view(self._active_metrics)
+
     def _open_mark_dialog(self, result, is_plagiarism_default):
-        from view.history_view import PlagiarismMarkDialog
         dialog = PlagiarismMarkDialog(result.file_a, result.file_b, self)
         dialog.plagiarism_checkbox.setChecked(is_plagiarism_default)
         dialog.notes_edit.setPlainText(result.plagiarism_notes)
