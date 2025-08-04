@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Python 代码查重工具")
-        self.resize(1600, 900)
+        self.resize(1800, 900)
 
         # 状态管理
         base_metrics = list(self.controller.analyzer.metrics.keys())
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.left_panel)
         main_splitter.addWidget(self.center_panel)
         main_splitter.addWidget(self.right_panel)
-        main_splitter.setSizes([300, 700, 600])
+        main_splitter.setSizes([300, 900, 600])
         self._connect_signals()
 
         # 控制器注入视图

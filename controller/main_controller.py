@@ -2,8 +2,9 @@
 
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Tuple, Any
 from datetime import datetime
+
 from model.file_manager import FileManager
 from model.similarity import CodeAnalyzer, ComparisonResult
 from model.similarity.result import AnalysisSession
@@ -26,6 +27,9 @@ class MainController:
         self.current_session: AnalysisSession = None
         self.login_time = datetime.now()
         
+        # 用于追踪导入来源的状态列表
+        self.import_sources: List[Tuple[str, Any]] = []
+
         # 视图（在 MainWindow 中注入）
         self.result_view: CenterPanel = None  # type: ignore
         self.detail_view: DetailView = None      # type: ignore
@@ -36,6 +40,7 @@ class MainController:
         """
         try:
             self.file_manager.load_directory(directory)
+            self.import_sources.append(('dir', directory))
         except Exception as e:
             print(f"加载目录失败: {e}")
 
@@ -46,6 +51,7 @@ class MainController:
         """
         try:
             self.file_manager.load_files(file_paths)
+            self.import_sources.append(('files', file_paths))
         except Exception as e:
             print(f"加载目录失败: {e}")
 
@@ -60,6 +66,7 @@ class MainController:
         清空所有文件。
         """
         self.file_manager.clear_all()
+        self.import_sources.clear()
 
     def trigger_analysis(self) -> None:
         """
@@ -73,7 +80,14 @@ class MainController:
         
         # 创建会话
         session_id = str(uuid.uuid4())
-        session_description = f"自定义导入 ({len(files)}个文件)"
+        session_description = ""
+        if len(self.import_sources) == 1 and self.import_sources[0][0] == 'dir':
+            # 如果只有一次导入，且是目录导入
+            directory_path = self.import_sources[0][1]
+            session_description = f"从 {Path(directory_path).name} 导入 ({len(files)}个文件)"
+        else:
+            # 其他所有情况（多次导入、仅文件导入、混合导入）
+            session_description = f"自定义导入 ({len(files)}个文件)"
         self.current_session = AnalysisSession(
             session_id=session_id,
             directory=session_description,
@@ -93,6 +107,9 @@ class MainController:
         # 更新列表视图
         if self.result_view:
             self.result_view.set_data(results)
+        
+        # 分析完成后清空本次的导入来源记录
+        self.import_sources.clear()
 
     def show_detail(self, comparison: ComparisonResult) -> None:
         """

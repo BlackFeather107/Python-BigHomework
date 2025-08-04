@@ -21,16 +21,16 @@ class CodeAnalyzer:
         self.metrics = {
             # "编辑距离相似度": LevenshteinMetric(),
             "逻辑顺序相似度": LCSMetric(),
+            "序列匹配度": SequenceSimilarityMetric(),
             "结构指纹相似度": ASTFingerprintMetric(),
             "词汇重合度": JaccardMetric(),
-            "序列匹配度": SequenceSimilarityMetric(),
             "语法构成相似度": ASTHistogramMetric()
         }
         self.weights = {
-            "逻辑顺序相似度": 0.35,
-            "结构指纹相似度": 0.35,
+            "逻辑顺序相似度": 0.40,
+            "序列匹配度": 0.20,
+            "结构指纹相似度": 0.20,
             "词汇重合度": 0.10,
-            "序列匹配度": 0.10,
             "语法构成相似度": 0.10
         }
 
