@@ -1,7 +1,8 @@
 # view/panels/center_panel.py
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QMenu, QAction, QMessageBox)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, 
+                             QTableWidgetItem, QHeaderView, QMenu, 
+                             QAction, QMessageBox, QCheckBox)
 from PyQt5.QtCore import pyqtSignal, Qt
 from pathlib import Path
 
@@ -9,7 +10,8 @@ from pathlib import Path
 class CenterPanel(QWidget):
     item_clicked = pyqtSignal(object)
     plagiarism_marked = pyqtSignal(str, str, bool, str)
-
+    auto_marking_toggled = pyqtSignal(bool)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self._full_results = []
@@ -27,6 +29,11 @@ class CenterPanel(QWidget):
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.table)
+
+        self.auto_mark_checkbox = QCheckBox("启用自动标记功能")
+        self.auto_mark_checkbox.setChecked(True)
+        self.auto_mark_checkbox.stateChanged.connect(lambda state: self.auto_marking_toggled.emit(bool(state)))
+        layout.addWidget(self.auto_mark_checkbox)
     
     def set_data(self, results):
         self._full_results = results

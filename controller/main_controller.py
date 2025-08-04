@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 from typing import List, Tuple, Any
 from datetime import datetime
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from model.file_manager import FileManager
 from model.similarity import CodeAnalyzer, ComparisonResult
@@ -12,12 +13,16 @@ from model.history_manager import HistoryManager
 from view.panels.center_panel import CenterPanel
 from view.detail_view import DetailView
 
-class MainController:
+class MainController(QObject):
     """
     协调 Model 与 View 的核心控制器。
     负责导入文件、执行查重、以及展示详细对比。
     """
+    # 定义一个信号，用于通知MainWindow显示弹窗
+    show_auto_mark_dialog_requested = pyqtSignal()
+
     def __init__(self):
+        super().__init__()
         # 模型
         self.file_manager = FileManager()
         self.analyzer = CodeAnalyzer()
@@ -26,7 +31,12 @@ class MainController:
         # 当前会话
         self.current_session: AnalysisSession = None
         self.login_time = datetime.now()
-        
+
+        # 自动标记功能的状态变量
+        self.auto_marking_enabled = True
+        self.suppress_auto_mark_popup = False
+        self.has_shown_auto_mark_popup = False
+
         # 用于追踪导入来源的状态列表
         self.import_sources: List[Tuple[str, Any]] = []
 
@@ -68,6 +78,13 @@ class MainController:
         self.file_manager.clear_all()
         self.import_sources.clear()
 
+    # 用于从UI更新弹窗状态
+    def set_auto_marking_enabled(self, enabled: bool):
+        self.auto_marking_enabled = enabled
+
+    def set_suppress_popup(self, suppress: bool):
+        self.suppress_auto_mark_popup = suppress
+
     def trigger_analysis(self) -> None:
         """
         对已加载的文件执行两两查重，按重复率降序。
@@ -76,12 +93,15 @@ class MainController:
         files = [str(p) for p in self.file_manager.sorted_files]
         if not files:
             print("无文件可查重")
+            if self.result_view:
+                self.result_view.set_data([])
+                self.result_view.update_view([])
             return
         
         # 创建会话
         session_id = str(uuid.uuid4())
         session_description = ""
-        if len(self.import_sources) == 1 and self.import_sources[0][0] == 'dir':
+        if hasattr(self, 'import_sources') and len(self.import_sources) == 1 and self.import_sources[0][0] == 'dir':
             # 如果只有一次导入，且是目录导入
             directory_path = self.import_sources[0][1]
             session_description = f"从 {Path(directory_path).name} 导入 ({len(files)}个文件)"
@@ -97,6 +117,21 @@ class MainController:
         # 执行匹配分析
         results = self.analyzer.run_analysis(files)
         
+        # 执行自动标记
+        auto_marked_count = 0
+        if self.auto_marking_enabled:
+            for result in results:
+                # 只标记之前未被标记过的
+                if not result.is_plagiarism and result.scores.get("综合可疑度", 0) >= 0.80:
+                    result.is_plagiarism = True
+                    result.plagiarism_notes = "自动标记 (可疑度 >= 80%)"
+                    auto_marked_count += 1
+        
+        # 检查是否需要弹窗
+        if auto_marked_count > 0 and not self.suppress_auto_mark_popup and not self.has_shown_auto_mark_popup:
+            self.has_shown_auto_mark_popup = True
+            self.show_auto_mark_dialog_requested.emit() # 发射信号
+
         # 将结果添加到当前会话
         if self.current_session:
             for result in results:
@@ -109,7 +144,8 @@ class MainController:
             self.result_view.set_data(results)
         
         # 分析完成后清空本次的导入来源记录
-        self.import_sources.clear()
+        if hasattr(self, 'import_source'):
+            self.import_sources.clear()
 
     def show_detail(self, comparison: ComparisonResult) -> None:
         """
@@ -135,10 +171,11 @@ class MainController:
         加载指定的历史会话
         """
         session = self.history_manager.get_session_by_id(session_id)
-        if session and self.result_view:
-            self.result_view.set_data(session.results)
-            return session
-        return None
+        if session:
+            self.current_session = session
+            if self.result_view:
+                self.result_view.set_data(session.results)
+        return session
 
     def mark_plagiarism(self, file_a: str, file_b: str, is_plagiarism: bool, notes: str = ""):
         """

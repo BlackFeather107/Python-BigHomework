@@ -8,6 +8,7 @@ from pathlib import Path
 from view.panels.left_panel import LeftPanel
 from view.panels.center_panel import CenterPanel
 from view.panels.right_panel import RightPanel
+from view.dialog_view import AutoMarkDialog
 
 METRIC_DESCRIPTIONS = {
     "综合可疑度": "综合所有单一指标的加权平均分，作为评估整体抄袭可能性的主要依据。",
@@ -51,6 +52,10 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         """集中管理所有信号和槽的连接。"""
+        # 弹窗信号连接
+        self.controller.show_auto_mark_dialog_requested.connect(self._show_auto_mark_dialog)
+        self.center_panel.auto_marking_toggled.connect(self.on_auto_marking_toggled)
+
         # 右侧面板信号 -> MainWindow槽函数
         self.right_panel.import_directory_clicked.connect(self.open_directory)
         self.right_panel.import_files_clicked.connect(self.open_files)
@@ -65,6 +70,24 @@ class MainWindow(QMainWindow):
         # 中间面板信号 -> MainWindow槽函数
         self.center_panel.item_clicked.connect(self.on_item_selected)
         self.center_panel.plagiarism_marked.connect(self.on_plagiarism_marked)
+
+    def _show_auto_mark_dialog(self):
+        """显示自动标记提示框，并根据结果更新Controller状态"""
+        dialog = AutoMarkDialog(self)
+        # 同步复选框初始状态
+        dialog.no_auto_mark_checkbox.setChecked(not self.controller.auto_marking_enabled)
+
+        if dialog.exec_():
+            settings = dialog.get_settings()
+            self.controller.set_auto_marking_enabled(not settings['stop_auto_marking'])
+            self.controller.set_suppress_popup(settings['stop_showing_popup'])
+            
+            # 同步更新CenterPanel中的复选框状态
+            self.center_panel.auto_mark_checkbox.setChecked(not settings['stop_auto_marking'])
+
+    def on_auto_marking_toggled(self, is_enabled: bool):
+        """响应CenterPanel中的复选框状态改变"""
+        self.controller.set_auto_marking_enabled(is_enabled)
 
     def on_metric_toggled(self, metric_name, state):
         """处理指标复选框状态改变"""
