@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
         self.controller.result_view = self.center_panel
         self.controller.detail_view = self.right_panel.detail_view
         self.center_panel.update_view(self.active_metrics)
+        self.center_panel.clear_markings_requested.connect(self.on_clear_markings)
 
     def _connect_signals(self):
         """集中管理所有信号和槽的连接。"""
@@ -84,24 +85,6 @@ class MainWindow(QMainWindow):
             
             # 同步更新CenterPanel中的复选框状态
             self.center_panel.auto_mark_checkbox.setChecked(not settings['stop_auto_marking'])
-
-    def on_auto_marking_toggled(self, is_enabled: bool):
-        """响应CenterPanel中的复选框状态改变"""
-        self.controller.set_auto_marking_enabled(is_enabled)
-
-    def on_metric_toggled(self, metric_name, state):
-        """处理指标复选框状态改变"""
-        if state:
-            # 如果是勾选，添加到显示列表的末尾
-            if metric_name not in self.active_metrics:
-                self.active_metrics.append(metric_name)
-        else:
-            # 如果是取消勾选，从列表中移除
-            if metric_name in self.active_metrics:
-                self.active_metrics.remove(metric_name)
-        
-        # 更新视图
-        self.center_panel.update_view(self.active_metrics)
         
     def run_analysis(self):
         """执行分析并使用当前激活的指标更新视图"""
@@ -150,7 +133,7 @@ class MainWindow(QMainWindow):
         self._update_file_list_ui() # 刷新UI
 
     def on_item_selected(self, comparison):
-        # 更新状态栏，只显示文件名
+        """查看详细对比信息。"""
         file_a_name = Path(comparison.file_a).name
         file_b_name = Path(comparison.file_b).name
         self.right_panel.log_label.setText(f"状态：查看 {file_a_name} vs {file_b_name}")
@@ -169,3 +152,30 @@ class MainWindow(QMainWindow):
         self.controller.mark_plagiarism(file_a, file_b, is_plagiarism, notes)
         self.right_panel.plagiarism_view.refresh_plagiarism_sessions()
         self.left_panel.history_view.refresh_sessions()
+
+    def on_clear_markings(self):
+        """处理清除所有标记的请求。"""
+        self.controller.clear_all_markings()
+        # 刷新视图以显示变化
+        self.center_panel.update_view(self.active_metrics)
+        self.right_panel.plagiarism_view.refresh_plagiarism_sessions()
+        self.left_panel.history_view.refresh_sessions()
+        self.right_panel.log_label.setText("状态：已清除当前会话的所有标记。")
+
+    def on_auto_marking_toggled(self, is_enabled: bool):
+        """响应CenterPanel中的复选框状态改变"""
+        self.controller.set_auto_marking_enabled(is_enabled)
+
+    def on_metric_toggled(self, metric_name, state):
+        """处理指标复选框状态改变"""
+        if state:
+            # 如果是勾选，添加到显示列表的末尾
+            if metric_name not in self.active_metrics:
+                self.active_metrics.append(metric_name)
+        else:
+            # 如果是取消勾选，从列表中移除
+            if metric_name in self.active_metrics:
+                self.active_metrics.remove(metric_name)
+        
+        # 更新视图
+        self.center_panel.update_view(self.active_metrics)

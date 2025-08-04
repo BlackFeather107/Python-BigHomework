@@ -85,6 +85,18 @@ class MainController(QObject):
     def set_suppress_popup(self, suppress: bool):
         self.suppress_auto_mark_popup = suppress
 
+    def clear_all_markings(self):
+        """清除当前会话中所有结果的抄袭标记。"""
+        if not self.current_session:
+            return
+
+        for result in self.current_session.results:
+            result.is_plagiarism = False
+            result.plagiarism_notes = ""
+        
+        # 更新历史记录中的会话数据
+        self.history_manager.add_session(self.current_session)
+
     def trigger_analysis(self) -> None:
         """
         对已加载的文件执行两两查重，按重复率降序。

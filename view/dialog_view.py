@@ -27,7 +27,7 @@ class AutoMarkDialog(QDialog):
 
         # 勾选项
         self.no_auto_mark_checkbox = QCheckBox("取消自动标记")
-        self.no_auto_mark_checkbox.setWhatsThis("如果您勾选此项，在您下次登录前，程序将不会再自动标记任何可疑代码。")
+        self.no_auto_mark_checkbox.setWhatsThis("如果您勾选此项，在您下次登录前，程序将不会再自动标记任何可疑代码，但本次标记仍保留。")
         self.no_show_popup_checkbox = QCheckBox("不再弹窗提醒")
         self.no_show_popup_checkbox.setWhatsThis("如果您勾选此项，在您下次登录前，即使有代码被自动标记，此提示框也不会再弹出。")
 
