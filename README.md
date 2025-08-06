@@ -87,8 +87,8 @@ python main.py
 ```
 pycode_checker/
 ├── main.py                   # 程序入口
-├── requirements.txt            # 依赖包列表
-├── model/                      # 数据模型与核心逻辑
+├── requirements.txt          # 依赖包列表
+├── model/                    # 数据模型与核心逻辑
 │   ├── file_manager.py       # 文件管理
 │   ├── history_manager.py    # 历史记录管理
 │   ├── graph_handler.py      # 图生成与处理
@@ -99,7 +99,7 @@ pycode_checker/
 │       ├── metrics.py        # 各个相似度算法
 │       ├── ast_handler.py    # AST处理工具
 │       └── preprocessors.py  # 预处理器
-├── view/                       # 用户界面
+├── view/                     # 用户界面
 │   ├── main_window.py        # 主窗口 (组装)
 │   ├── detail_view.py        # 详细对比视图
 │   ├── history_view.py       # 历史记录相关UI
@@ -109,9 +109,9 @@ pycode_checker/
 │       ├── left_panel.py
 │       ├── center_panel.py
 │       └── right_panel.py
-├── controller/                 # 控制器
+├── controller/               # 控制器
 │   └── main_controller.py    # 主控制器
-└── history/                    # 历史记录存储目录
+└── history/                  # 历史记录存储目录
     └── analysis_history.json
 ```
 
