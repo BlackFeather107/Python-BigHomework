@@ -26,7 +26,6 @@ class HistoryManager:
                     self.sessions = [AnalysisSession.from_dict(session_data) 
                                    for session_data in data.get('sessions', [])]
             except Exception as e:
-                print(f"加载历史记录失败: {e}")
                 self.sessions = []
 
     def save_history(self):

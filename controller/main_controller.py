@@ -88,13 +88,21 @@ class MainController(QObject):
         self.suppress_auto_mark_popup = suppress
 
     def clear_all_markings(self):
-        """清除当前会话中所有结果的抄袭标记。"""
+        """
+        清除当前会话中所有结果的抄袭标记。
+        """
         if not self.current_session:
             return
 
         for result in self.current_session.results:
             result.is_plagiarism = False
             result.plagiarism_notes = ""
+
+    def clear_all_histories(self):
+        """
+        清除所有历史记录
+        """
+        self.history_manager.clear_history()
 
     def trigger_analysis(self) -> None:
         """

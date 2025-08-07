@@ -80,6 +80,10 @@ class HistoryView(QWidget):
         self.refresh_btn = QPushButton("刷新")
         self.refresh_btn.clicked.connect(self.refresh_sessions)
         button_layout.addWidget(self.refresh_btn)
+
+        self.clear_btn = QPushButton("清除")
+        self.clear_btn.clicked.connect(self.clear_history)
+        button_layout.addWidget(self.clear_btn)
         
         self.export_report_btn = QPushButton("导出抄袭报告")
         self.export_report_btn.clicked.connect(self.export_plagiarism_report)
@@ -109,6 +113,11 @@ class HistoryView(QWidget):
             item.setData(Qt.UserRole, session.session_id)
             self.session_list.addItem(item)
     
+    def clear_history(self):
+        """清除历史会话列表"""
+        self.session_list.clear()
+        self.controller.clear_all_histories()
+
     def on_session_selected(self, item):
         """会话被选中"""
         session_id = item.data(Qt.UserRole)
