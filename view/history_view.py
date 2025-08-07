@@ -75,25 +75,27 @@ class HistoryView(QWidget):
         layout.addWidget(self.session_list)
         
         # 按钮组
-        button_layout = QHBoxLayout()
+        button_layout_above = QHBoxLayout()
+        button_layout_behind = QHBoxLayout()
         
         self.refresh_btn = QPushButton("刷新")
         self.refresh_btn.clicked.connect(self.refresh_sessions)
-        button_layout.addWidget(self.refresh_btn)
+        button_layout_above.addWidget(self.refresh_btn)
 
         self.clear_btn = QPushButton("清除")
         self.clear_btn.clicked.connect(self.clear_history)
-        button_layout.addWidget(self.clear_btn)
+        button_layout_above.addWidget(self.clear_btn)
         
         self.export_report_btn = QPushButton("导出抄袭报告")
         self.export_report_btn.clicked.connect(self.export_plagiarism_report)
-        button_layout.addWidget(self.export_report_btn)
+        button_layout_behind.addWidget(self.export_report_btn)
         
         self.export_files_btn = QPushButton("导出抄袭文件")
         self.export_files_btn.clicked.connect(self.export_plagiarism_files)
-        button_layout.addWidget(self.export_files_btn)
+        button_layout_behind.addWidget(self.export_files_btn)
         
-        layout.addLayout(button_layout)
+        layout.addLayout(button_layout_above)
+        layout.addLayout(button_layout_behind)
         
         # 初始加载
         self.refresh_sessions()
