@@ -95,9 +95,6 @@ class MainController(QObject):
         for result in self.current_session.results:
             result.is_plagiarism = False
             result.plagiarism_notes = ""
-        
-        # 更新历史记录中的会话数据
-        self.history_manager.add_session(self.current_session)
 
     def trigger_analysis(self) -> None:
         """
