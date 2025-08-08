@@ -115,7 +115,7 @@ class MainController(QObject):
             if self.result_view:
                 self.result_view.set_data([])
                 self.result_view.update_view([])
-            return
+            return False
         
         # 创建会话
         session_id = str(uuid.uuid4())
@@ -164,6 +164,8 @@ class MainController(QObject):
         # 分析完成后清空本次的导入来源记录
         if hasattr(self, 'import_source'):
             self.import_sources.clear()
+        
+        return True
 
     def show_detail(self, comparison: ComparisonResult) -> None:
         """
