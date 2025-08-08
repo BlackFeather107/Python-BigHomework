@@ -97,6 +97,8 @@ class MainController(QObject):
         for result in self.current_session.results:
             result.is_plagiarism = False
             result.plagiarism_notes = ""
+        
+        self.history_manager.reset_result_plagiarism_status(self.current_session)
 
     def clear_all_histories(self):
         """

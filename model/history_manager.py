@@ -74,6 +74,15 @@ class HistoryManager:
                     result.plagiarism_notes = notes
                     break
             self.save_history()
+    
+    def reset_result_plagiarism_status(self, session_id: str):
+        """重置特定会话的抄袭状态"""
+        session = self.get_session_by_id(session_id)
+        if session:
+            for result in session.results:
+                result.is_plagiarism = False
+                result.plagiarism_notes = ""
+        self.save_history()
 
     def export_plagiarism_report(self, output_file: str) -> bool:
         """导出所有抄袭判定的报告"""
