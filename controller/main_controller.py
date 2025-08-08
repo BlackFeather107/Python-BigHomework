@@ -37,13 +37,12 @@ class MainController(QObject):
         # 自动标记功能的状态变量
         self.auto_marking_enabled = True
         self.suppress_auto_mark_popup = False
-        self.has_shown_auto_mark_popup = False
 
         # 用于追踪导入来源的状态列表
         self.import_sources: List[Tuple[str, Any]] = []
 
         # 视图（在 MainWindow 中注入）
-        self.result_view: CenterPanel = None  # type: ignore
+        self.result_view: CenterPanel = None     # type: ignore
         self.detail_view: DetailView = None      # type: ignore
 
     def import_directory(self, directory: str) -> None:
@@ -106,14 +105,13 @@ class MainController(QObject):
         """
         self.history_manager.clear_history()
 
-    def trigger_analysis(self) -> None:
+    def trigger_analysis(self) -> bool:
         """
         对已加载的文件执行两两查重，按重复率降序。
         将结果传递给 ResultListView 更新显示。
         """
         files = [str(p) for p in self.file_manager.sorted_files]
         if not files:
-            print("无文件可查重")
             if self.result_view:
                 self.result_view.set_data([])
                 self.result_view.update_view([])
@@ -149,8 +147,7 @@ class MainController(QObject):
                     auto_marked_count += 1
         
         # 检查是否需要弹窗
-        if auto_marked_count > 0 and not self.suppress_auto_mark_popup and not self.has_shown_auto_mark_popup:
-            self.has_shown_auto_mark_popup = True
+        if auto_marked_count > 0 and not self.suppress_auto_mark_popup:
             self.show_auto_mark_dialog_requested.emit() # 发射信号
 
         # 将结果添加到当前会话

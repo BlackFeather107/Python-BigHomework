@@ -93,11 +93,14 @@ class MainWindow(QMainWindow):
     def run_analysis(self):
         """执行分析并使用当前激活的指标更新视图"""
         self.right_panel.log_label.setText("状态：正在分析中...")
-        self.controller.trigger_analysis()
-        self.right_panel.log_label.setText("状态：分析完成")
-        self.center_panel.set_data(self.controller.current_session.results)
-        self.center_panel.update_view(self.active_metrics)
-        self.left_panel.history_view.refresh_sessions()
+        response = self.controller.trigger_analysis()
+        if response:
+            self.right_panel.log_label.setText("状态：分析完成")
+            self.center_panel.set_data(self.controller.current_session.results)
+            self.center_panel.update_view(self.active_metrics)
+            self.left_panel.history_view.refresh_sessions()
+        else:
+            self.right_panel.log_label.setText("状态：无文件可查重")
 
     def open_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "选择代码目录")
